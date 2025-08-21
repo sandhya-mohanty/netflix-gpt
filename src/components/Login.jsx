@@ -1,29 +1,79 @@
 import React, { useRef, useState } from "react";
 import Header from "./Header";
 import { checkValidate } from "../utils/validate";
+import {  createUserWithEmailAndPassword,signInWithEmailAndPassword, updateProfile  } from "firebase/auth";
+import { auth } from "../utils/firebase";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addUser } from "../utils/userSlice";
+
 
 const Login = () => {
   const [isSignInForm, setIsSignInForm] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const email = useRef(null);
   const password = useRef(null);
+  const name = useRef(null);
   const toggleSignUpForm = () => {
     setIsSignInForm(!isSignInForm);
   };
+  
   const handleButtonClick = (e) => {
     e.preventDefault();
-    console.log("Email:", email.current.value);
-    console.log("Password:", password.current.value);
     const message = checkValidate(email.current.value, password.current.value);
     setErrorMessage(message);
-    // Here you can add logic to handle form submission
-    // console.log(isSignInForm ? "Signing In" : "Signing Up")
+    if (message) {
+      return;
+    } 
+    if (!isSignInForm) {
+      //sign up logic here
+      createUserWithEmailAndPassword(auth, email.current.value, password.current.value)
+  .then((userCredential) => {
+    // Signed up 
+    const user = userCredential.user;
+    updateProfile(user, {
+  displayName: name.current.value, photoURL: "https://wallpapers.com/images/hd/netflix-profile-pictures-1000-x-1000-qo9h82134t9nv0j0.jpg"
+}).then(() => {
+  const {uid,email,displayName,photoURL} = auth.currentUser;
+      dispatch(addUser({uid:uid,email:email,displayName :displayName, photoURL:photoURL})); 
+    navigate("/browser");
+}).catch((error) => {
+setErrorMessage(error.message);
+});
+   
+  })
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    setErrorMessage(errorCode + "-" + errorMessage);
+    // ..
+  });
+    } else {
+      //sign in logic here  
+      signInWithEmailAndPassword(auth,email.current.value, password.current.value)
+  .then((userCredential) => {
+    // Signed in 
+    const user = userCredential.user;
+    console.log(user);
+    navigate("/browser");
+    // ...
+  })
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    setErrorMessage(errorCode + "-" + errorMessage);
+  });
+    }
   };
+   
   return (
     <div>
       <Header />
       <div className="absolute">
-        <img
+        <img className="min-h-screen object-cover w-full"
           src="https://assets.nflxext.com/ffe/siteui/vlv3/258d0f77-2241-4282-b613-8354a7675d1a/web/IN-en-20250721-TRIFECTA-perspective_cadc8408-df6e-4313-a05d-daa9dcac139f_large.jpg"
           alt=""
         />
@@ -35,6 +85,7 @@ const Login = () => {
         {!isSignInForm && (
           <input
             type="text"
+            ref={name}
             placeholder="Enter Full Name"
             className="p-4 my-4 w-full bg-gray-700"
           />
